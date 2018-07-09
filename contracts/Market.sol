@@ -54,4 +54,8 @@ contract Market {
 
     return true;
   }
+
+  function totalProductIndex() view public returns (uint) {
+    return productIndex;
+  }
 }

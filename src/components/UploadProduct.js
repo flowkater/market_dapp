@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { setWeb3Instance, saveProduct } from "../utils/blockChainService";
 
 class UploadProduct extends Component {
   state = {
@@ -31,7 +32,8 @@ class UploadProduct extends Component {
       'Tickets',
       'Toys & Hobbies',
       'Video Games',
-    ]
+    ],
+    show: false
   }
 
   handleInputChange = (e) => {
@@ -50,7 +52,12 @@ class UploadProduct extends Component {
 
   handleSubmit = (e) => {
     e.preventDefault();
-    console.log(this.state);
+    let reader = new window.FileReader();
+    reader.readAsArrayBuffer(this.state.image);
+
+    setWeb3Instance()
+    .then(() => saveProduct(reader, this.state))
+    .then(() => this.setState({show: true, name: '', description: '', image: null, category: '', price: 0, condition: 0}))
   }
 
   
@@ -59,6 +66,11 @@ class UploadProduct extends Component {
        <div className="container">
         <h1>Upload Product Item</h1>
         <div className="container">
+          {this.state.show ? 
+            <div className="alert alert-success" role="alert">
+              Successful Updated Product Item
+            </div> : null
+          }
           <div className="row">
             <form 
               className="form-horizontal col-sm-5" 

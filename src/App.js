@@ -2,8 +2,15 @@ import React, { Component } from 'react'
 import ProductList from "./components/ProductList";
 import { Switch, Route, Link } from 'react-router-dom'
 import UploadProduct from './components/UploadProduct';
+import { setWeb3Instance } from "./utils/blockChainService";
 
 class App extends Component {
+  
+  componentWillMount() {
+    setWeb3Instance()
+  }
+  
+
   render() {
     return (
       <div>

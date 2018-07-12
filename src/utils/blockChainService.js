@@ -6,7 +6,7 @@ import MarketContract from "../../build/contracts/Market.json";
 const ipfs = ipfsAPI({host: 'localhost', port: '5001', protocol: 'http'});
 let web3Instance;
 
-let setWeb3Instance = function () {
+const setWeb3Instance = () => {
   return new Promise((resolve, reject) => {
       if (web3Instance) {
           resolve();
@@ -31,7 +31,7 @@ let setWeb3Instance = function () {
   })
 }
 
-let getMarketInstance = function () {
+const getMarketInstance = () => {
   return new Promise((resolve, reject) => {
     const Market = contract(MarketContract)
     Market.setProvider(web3Instance.currentProvider)
@@ -44,17 +44,82 @@ let getMarketInstance = function () {
   })
 }
 
-let totalProductIndex = function () {
+const getMarketInstanceBuyerAccount = () => {
+  return new Promise((resolve, reject) => {
+    const Market = contract(MarketContract)
+    Market.setProvider(web3Instance.currentProvider)
+    web3Instance.eth.getAccounts((error, accounts) => {
+      const account = accounts[1]
+      Market.deployed().then((instance) => {
+        resolve({ instance, account})
+      })
+    })
+  })
+}
+
+
+// Market.deployed().then(f => {f.buy(2, {value: web3.toWei(1, 'ether'), from: web3.eth.accounts[1]}) }).then(f => console.log(f))
+
+const buyProduct = (productId, amount) => {
+  return new Promise((resolve, reject) => {
+    let instance, account;
+    getMarketInstanceBuyerAccount()
+      .then(result => ({instance, account} = result))
+      .then(() => {
+        resolve(instance.buy(parseInt(productId, 10), 
+            {
+              value: web3Instance.toWei(amount, 'ether'), 
+              from: account, 
+              gas: 4400000
+            }))
+      })
+  })
+}
+
+const getEscrowInfo = (productId) => {
   return new Promise((resolve, reject) => {
     let instance, account;
     getMarketInstance()
       .then(result => ({instance, account} = result))
-      .then(() => instance.totalProductIndex.call())
-      .then(i => resolve(parseInt(i.toString())))
+      .then(() => instance.escrowInfo.call(parseInt(productId, 10)))
+      .then(escrowInfo => {
+        resolve({
+          buyer: escrowInfo[0].toString(),
+          seller: escrowInfo[1].toString(),
+          arbiter: escrowInfo[2].toString(),
+          fundsDisbursed: escrowInfo[3].toString(),
+          releaseCount: escrowInfo[4].toString(),
+          refundCount: escrowInfo[5].toString(),
+        })
+      })
   })
 }
 
-let getProduct = function (i) {
+const releaseAmountToSeller = (productId, address) => {
+  return new Promise((resolve, reject) => {
+    let instance, account;
+    getMarketInstance()
+      .then(result => ({instance, account} = result))
+      .then(() => resolve(instance.releaseAmountToSeller(parseInt(productId, 10),{
+        from: address,
+        gas: 4400000
+      })))
+  })
+}
+
+const refundAmountToBuyer = (productId, address) => {
+  return new Promise((resolve, reject) => {
+    let instance, account;
+    getMarketInstance()
+      .then(result => ({instance, account} = result))
+      .then(() => resolve(instance.refundAmountToBuyer(parseInt(productId, 10),{
+        from: address,
+        gas: 4400000
+      })))
+  })
+}
+
+const getProduct = (i) => {
   return new Promise((resolve, reject) => {
     let instance, account;
     getMarketInstance()
@@ -67,28 +132,14 @@ let getProduct = function (i) {
             category: product[2].toString(), 
            imageLink: product[3].toString(),
             descLink: product[4].toString(), 
-               price: product[5].toString(),
+               price: web3Instance.fromWei(parseInt(product[5].toString(), 10), 'ether'),
               status: product[6].toString(),
            condition: product[7].toString() })
       })
   })
 }
 
-let saveProduct = function(reader, params) {
-  return new Promise((resolve, reject) => {
-    console.log(reader, params);
-    let imageId, descId;
-    saveImageOnIpfs(reader).then(id => {
-      imageId = id;
-      saveTextBlobOnIpfs(params['description']).then(id => {
-        descId = id;
-        resolve(saveProductToBlockchanin(params, imageId, descId));
-      })
-    })
-  })
-}
-
-let saveProductToBlockchanin = function(params, imageId, descId) {
+const saveProductToBlockchanin = (params, imageId, descId) => {
   console.log(params, imageId, descId);
   return new Promise((resolve, reject) => {
     let instance, account;
@@ -101,14 +152,14 @@ let saveProductToBlockchanin = function(params, imageId, descId) {
           imageId, 
           descId, 
           web3Instance.toWei(params['price'], 'ether'), 
-          parseInt(params['condition']), {from: account, gas: 440000} ));
+          parseInt(params['condition'], 10), {from: account, gas: 440000} ));
       })
   })
 }
 
-let saveImageOnIpfs = function (reader) {
-  return new Promise(function(resolve, reject) {
-    reader.onload = function(e) {
+const saveImageOnIpfs = (reader) => {
+  return new Promise((resolve, reject) => {
+    reader.onload = (e) => {
       const buffer = Buffer.from(reader.result);
       ipfs.add(buffer)
       .then((response) => {
@@ -122,8 +173,8 @@ let saveImageOnIpfs = function (reader) {
   })
 }
 
-let saveTextBlobOnIpfs = function (blob) {
-  return new Promise(function(resolve, reject) {
+const saveTextBlobOnIpfs = (blob) => {
+  return new Promise((resolve, reject) => {
    const descBuffer = Buffer.from(blob, 'utf-8');
    ipfs.add(descBuffer)
    .then((response) => {
@@ -136,10 +187,31 @@ let saveTextBlobOnIpfs = function (blob) {
   })
  }
 
+
+const saveProduct = (reader, params) => {
+  return new Promise((resolve, reject) => {
+    console.log(reader, params);
+    let imageId, descId;
+    saveImageOnIpfs(reader).then(id => {
+      imageId = id;
+      saveTextBlobOnIpfs(params['description']).then(id => {
+        descId = id;
+        resolve(saveProductToBlockchanin(params, imageId, descId));
+      })
+    })
+  })
+}
+
+
 export {
-  totalProductIndex,
+  releaseAmountToSeller,
+  refundAmountToBuyer,
+  getEscrowInfo,
+  web3Instance,
+  ipfs,
   saveProduct,
   getMarketInstance,
   getProduct,
+  buyProduct,
   setWeb3Instance
 }

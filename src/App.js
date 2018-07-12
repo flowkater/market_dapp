@@ -3,6 +3,7 @@ import ProductList from "./components/ProductList";
 import { Switch, Route, Link } from 'react-router-dom'
 import UploadProduct from './components/UploadProduct';
 import { setWeb3Instance } from "./utils/blockChainService";
+import ProductShow from './components/ProductShow';
 
 class App extends Component {
   
@@ -27,6 +28,7 @@ class App extends Component {
         <Switch>
           <Route exact path='/' component={ProductList} />
           <Route path='/upload' component={UploadProduct} />
+          <Route path='/products/:id' component={ProductShow} />
         </Switch>
       </div>
     );
